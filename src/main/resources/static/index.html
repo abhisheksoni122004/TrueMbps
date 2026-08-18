@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <title>Internet Speed Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            color: #111;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-top: max(env(safe-area-inset-top, 0px), 12px);
+            padding-right: max(env(safe-area-inset-right, 0px), 20px);
+            padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+            padding-left: max(env(safe-area-inset-left, 0px), 20px);
+            background: radial-gradient(circle at top, #ffffff 0%, #f7f7f7 45%, #eeeeee 100%);
+        }
+
+        .speedtest {
+            width: 650px;
+            max-width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(22px, min(6vw, 5.5vh), 40px);
+            font-weight: 600;
+            letter-spacing: -1px;
+            line-height: 1.15;
+            animation: fadeInUp 0.7s ease both;
+        }
+
+        /* ========================= GAUGE (Ookla style) ========================= */
+        .gauge {
+            width: min(340px, 82vw);
+            height: min(340px, 82vw);
+            margin: clamp(18px, 5vw, 30px) auto clamp(14px, 3.5vw, 22px);
+            border-radius: 50%;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+            animation: fadeInUp 0.7s ease 0.15s both;
+        }
+
+        /* Outer track ring */
+        .gauge::before {
+            content: "";
+            position: absolute;
+            inset: 12px;
+            border-radius: 50%;
+            background: conic-gradient(
+                    from 225deg,
+                    #333 0deg,
+                    #333 270deg,
+                    transparent 270deg
+            );
+            mask: radial-gradient(farthest-side, transparent 78%, #000 79%);
+            -webkit-mask: radial-gradient(farthest-side, transparent 78%, #000 79%);
+        }
+
+        /* Active progress arc (filled by needle position) */
+        .gauge-progress {
+            position: absolute;
+            inset: 12px;
+            border-radius: 50%;
+            background: conic-gradient(
+                    from 225deg,
+                    #22d3ee 0deg,
+                    #22d3ee 0deg,
+                    transparent 0deg
+            );
+            mask: radial-gradient(farthest-side, transparent 78%, #000 79%);
+            -webkit-mask: radial-gradient(farthest-side, transparent 78%, #000 79%);
+            transition: background 0.08s linear;
+        }
+
+        /* Scale numbers – start almost invisible */
+        .gauge-labels {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .gauge-labels span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            font-size: clamp(11px, 2.8vw, 13px);
+            font-weight: 600;
+            color: #555;
+            width: 40px;
+            height: 20px;
+            margin-left: -20px;
+            margin-top: -10px;
+            text-align: center;
+            opacity: 0.25;
+            transition: opacity 0.35s ease, color 0.35s ease, text-shadow 0.35s ease;
+            transform-origin: center center;
+        }
+
+        /* When the needle reaches a number it becomes bright */
+        .gauge-labels span.active {
+            opacity: 1;
+            color: #e0f7ff;
+            text-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+        }
+
+        .gauge-labels .l0    { transform: rotate(225deg) translate(0, -142px) rotate(-225deg); }
+        .gauge-labels .l5    { transform: rotate(246deg) translate(0, -142px) rotate(-246deg); }
+        .gauge-labels .l10   { transform: rotate(265deg) translate(0, -142px) rotate(-265deg); }
+        .gauge-labels .l50   { transform: rotate(300deg) translate(0, -142px) rotate(-300deg); }
+        .gauge-labels .l100  { transform: rotate(330deg) translate(0, -142px) rotate(-330deg); }
+        .gauge-labels .l250  { transform: rotate(375deg) translate(0, -142px) rotate(-375deg); }
+        .gauge-labels .l500  { transform: rotate(420deg) translate(0, -142px) rotate(-420deg); }
+        .gauge-labels .l750  { transform: rotate(455deg) translate(0, -142px) rotate(-455deg); }
+        .gauge-labels .l1000 { transform: rotate(495deg) translate(0, -142px) rotate(-495deg); }
+
+        /* Needle */
+        .needle {
+            position: absolute;
+            width: 4px;
+            height: 42%;
+            background: linear-gradient(to top, #22d3ee, #67e8f9);
+            border-radius: 4px;
+            top: 12%;
+            left: 50%;
+            margin-left: -2px;
+            transform-origin: bottom center;
+            transform: rotate(-135deg); /* start at 0 */
+            z-index: 5;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+            transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .needle::after {
+            content: "";
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            background: #22d3ee;
+            border-radius: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 12px rgba(34, 211, 238, 0.7);
+        }
+
+        /* Center circle */
+        .gauge-inner {
+            width: 58%;
+            height: 58%;
+            border-radius: 50%;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 6;
+            position: relative;
+            box-shadow: inset 0 0 0 1px #333;
+        }
+
+        #speed {
+            font-size: clamp(36px, 11vw, 68px);
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            line-height: 1;
+            color: #fff;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #speed.pop {
+            transform: scale(1.08);
+        }
+
+        .unit {
+            margin-top: 4px;
+            font-size: clamp(12px, 3vw, 15px);
+            color: #888;
+        }
+
+        #speedType {
+            margin-top: 6px;
+            font-size: clamp(10px, 2.5vw, 12px);
+            font-weight: 700;
+            color: #22d3ee;
+            letter-spacing: 1.5px;
+        }
+
+        /* ========================= REST OF UI ========================= */
+        #status {
+            margin: clamp(6px, 1.8vh, 16px) 0 clamp(2px, 0.6vh, 6px);
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: 500;
+            padding: 0 8px;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        #status.fade {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        #testTime {
+            margin: 0;
+            font-size: clamp(11px, 3vw, 13px);
+            color: #888;
+        }
+
+        #startButton {
+            margin-top: clamp(8px, 2vh, 20px);
+            width: min(220px, 90vw);
+            height: clamp(44px, 6.5vh, 56px);
+            min-height: 44px;
+            border: none;
+            border-radius: 30px;
+            background: #111;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            touch-action: manipulation;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            animation: fadeInUp 0.7s ease 0.3s both;
+        }
+
+        #startButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: #222;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+        }
+
+        #startButton:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        #startButton:disabled {
+            background: #e0e0e0;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        #startButton:disabled::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+            animation: shimmer 1.6s infinite;
+        }
+
+        .top-speed {
+            text-align: center;
+            margin-bottom: 10px;
+            animation: fadeInUp 0.7s ease 0.1s both;
+        }
+
+        #topDownloadSpeed {
+            font-size: 52px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -2px;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #topDownloadSpeed.pop {
+            transform: scale(1.12);
+        }
+
+        .top-speed span {
+            display: block;
+            margin-top: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: #667085;
+        }
+
+        .ping-icon     { color: #6366f1; display: inline-block; }
+        .download-icon { color: #16a34a; display: inline-block; }
+        .upload-icon   { color: #f97316; display: inline-block; }
+
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: clamp(8px, 2vh, 20px);
+        }
+
+        .results div {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e8e8e8;
+            border-radius: 16px;
+            padding: clamp(8px, 1.6vh, 14px) 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(3px, 0.7vh, 6px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            min-width: 0;
+            animation: fadeInUp 0.7s ease both;
+        }
+
+        .results div:nth-child(1) { animation-delay: 0.4s; }
+        .results div:nth-child(2) { animation-delay: 0.5s; }
+        .results div:nth-child(3) { animation-delay: 0.6s; }
+
+        .results div:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.09);
+        }
+
+        .results div.updated {
+            animation: cardPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .results span {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .results strong {
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(22px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes cardPop {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shimmer {
+            0%   { left: -100%; }
+            100% { left: 160%; }
+        }
+
+        @media (max-width: 700px) {
+            .speedtest { width: 100%; padding: 0; }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                align-items: flex-start;
+                padding-top: max(env(safe-area-inset-top, 0px), 32px);
+            }
+            .results { gap: 8px; }
+            .results div {
+                padding: 14px 4px;
+                border-radius: 14px;
+            }
+            #startButton {
+                width: 100%;
+                max-width: 320px;
+            }
+        }
+
+        @media (max-width: 340px) {
+            .results {
+                grid-template-columns: 1fr;
+                max-width: 220px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+
+        @media (max-height: 480px) and (orientation: landscape) {
+            .gauge {
+                width: min(220px, 40vh);
+                height: min(220px, 40vh);
+                margin: 12px auto;
+            }
+            .results { margin-top: 16px; }
+            #startButton {
+                margin-top: 14px;
+                height: 48px;
+            }
+        }
+
+        /* ========================= FOOTER BRANDING ========================= */
+        .site-footer {
+            position: fixed;
+            right: max(env(safe-area-inset-right, 0px), 16px);
+            bottom: max(env(safe-area-inset-bottom, 0px), 14px);
+
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            font-size: clamp(10px, 2.6vw, 12px);
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            color: #999;
+
+            pointer-events: none; /* purely decorative, never blocks taps under it */
+            z-index: 20;
+        }
+
+        .site-footer strong {
+            color: #FF0000;
+            font-weight: 800;
+        }
+
+        /* Give the page enough bottom breathing room so the footer never
+           overlaps the results cards on short screens */
+        .speedtest {
+            padding-bottom: clamp(28px, 5vh, 46px);
+        }
+
+        @media (max-width: 480px) {
+            .site-footer {
+                right: 0;
+                left: 0;
+                bottom: max(env(safe-area-inset-bottom, 0px), 10px);
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="speedtest">
+    <h1>YOUR SPEED</h1>
+
+    <div class="top-speed">
+        <div id="topDownloadSpeed">0</div>
+        <span>Mbps DOWNLOAD</span>
+    </div>
+
+    <div class="gauge" id="gauge">
+        <div class="gauge-progress" id="gaugeProgress"></div>
+
+        <!-- Numbers that appear as needle moves -->
+        <div class="gauge-labels">
+            <span class="l0"   data-speed="0">0</span>
+            <span class="l5"   data-speed="5">5</span>
+            <span class="l10"  data-speed="10">10</span>
+            <span class="l50"  data-speed="50">50</span>
+            <span class="l100" data-speed="100">100</span>
+            <span class="l250" data-speed="250">250</span>
+            <span class="l500" data-speed="500">500</span>
+            <span class="l750" data-speed="750">750</span>
+            <span class="l1000" data-speed="1000">1000</span>
+        </div>
+
+        <!-- Needle -->
+        <div class="needle" id="needle"></div>
+
+        <div class="gauge-inner">
+            <div id="speed">0</div>
+            <div class="unit">Mbps</div>
+            <div id="speedType">Ready</div>
+        </div>
+    </div>
+
+    <button id="startButton" onclick="startTest()">START</button>
+
+    <p id="status">Ready...</p>
+    <p id="testTime">Test time: 0s</p>
+
+    <div class="results">
+        <div id="pingCard">
+            <span><b class="ping-icon">◉</b> Ping</span>
+            <strong id="pingResult">-- ms</strong>
+        </div>
+        <div id="downloadCard">
+            <span><b class="download-icon">↓</b> Download</span>
+            <strong id="downloadResult">-- Mbps</strong>
+        </div>
+        <div id="uploadCard">
+            <span><b class="upload-icon">↑</b> Upload</span>
+            <strong id="uploadResult">-- Mbps</strong>
+        </div>
+    </div>
+</div>
+
+<div class="site-footer">POWERED BY <strong>TrueMbps</strong></div>
+
+<script>
+    let displayedSpeed = 0;
+    let targetSpeed = 0;
+    const MAX_SPEED = 1000; // visual ceiling of the dial (needle/arc pin here); the numbers themselves are never capped
+    let currentTestPhase = null; // 'ping' | 'download' | 'upload' | null
+
+    // These MUST mirror the .gauge-labels CSS rotate() angles exactly, or the
+    // needle/arc will drift away from the numbers printed on the dial.
+    // label -> absolute rotate deg -> offset from the 225deg start -> fraction of the 270deg sweep
+    //   l0    225deg -> 0deg   -> 0
+    //   l5    246deg -> 21deg  -> 21/270
+    //   l10   265deg -> 40deg  -> 40/270
+    //   l50   300deg -> 75deg  -> 75/270
+    //   l100  330deg -> 105deg -> 105/270
+    //   l250  375deg -> 150deg -> 150/270
+    //   l500  420deg -> 195deg -> 195/270
+    //   l750  455deg -> 230deg -> 230/270
+    //   l1000 495deg -> 270deg -> 1
+    const SCALE_VALUES = [0, 5, 10, 50, 100, 250, 500, 750, 1000];
+    const SCALE_FRACS = [0, 21/270, 40/270, 75/270, 105/270, 150/270, 195/270, 230/270, 1];
+
+    // Converts an Mbps value into "how far around the dial" (0-1), using the
+    // same non-linear breakpoints as the printed labels, so the needle/arc
+    // always lines up with the number it's pointing at.
+    function speedToFraction(speed) {
+        const s = Math.max(0, Math.min(speed, MAX_SPEED));
+        for (let i = 0; i < SCALE_VALUES.length - 1; i++) {
+            const lo = SCALE_VALUES[i], hi = SCALE_VALUES[i + 1];
+            if (s <= hi) {
+                const t = (s - lo) / (hi - lo || 1);
+                return SCALE_FRACS[i] + t * (SCALE_FRACS[i + 1] - SCALE_FRACS[i]);
+            }
+        }
+        return 1;
+    }
+
+    async function testDownload() {
+        const controller = new AbortController();
+        let totalBytes = 0;
+        let measuring = false;
+
+        async function downloadStream() {
+            try {
+                const response = await fetch("/api/speed/download", { signal: controller.signal });
+                const reader = response.body.getReader();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    if (measuring) totalBytes += value.length;
+                }
+                if (!controller.signal.aborted) downloadStream();
+            } catch (error) {
+                if (error.name !== "AbortError") console.error(error);
+            }
+        }
+
+        for (let i = 0; i < 4; i++) downloadStream();
+
+        await new Promise(r => setTimeout(r, 2000));
+        totalBytes = 0;
+        measuring = true;
+        const measurementStartTime = performance.now();
+
+        const updateInterval = setInterval(() => {
+            const timeTaken = (performance.now() - measurementStartTime) / 1000;
+            if (timeTaken > 0) {
+                const speedMbps = (totalBytes * 8) / timeTaken / 1_000_000;
+                updateSpeed(speedMbps);
+            }
+        }, 100);
+
+        await new Promise(r => setTimeout(r, 10000));
+        measuring = false;
+        controller.abort();
+        clearInterval(updateInterval);
+
+        const timeTaken = (performance.now() - measurementStartTime) / 1000;
+        const speedMbps = (totalBytes * 8) / timeTaken / 1_000_000;
+        updateSpeed(speedMbps);
+        return speedMbps;
+    }
+
+    async function testPing() {
+        const samples = [];
+        for (let i = 0; i < 5; i++) {
+            const start = performance.now();
+            await fetch("/api/speed/ping");
+            samples.push(performance.now() - start);
+        }
+        samples.sort((a, b) => a - b);
+        return samples[Math.floor(samples.length / 2)];
+    }
+
+    async function testUpload() {
+        const numberOfRequests = 4;
+        const controller = new AbortController();
+        const chunkSize = 1024 * 1024;
+        let totalBytes = 0;
+        let measuring = false;
+
+        async function uploadStream() {
+            const data = new Uint8Array(chunkSize);
+            try {
+                while (true) {
+                    await fetch("/api/speed/upload", {
+                        method: "POST",
+                        body: data,
+                        signal: controller.signal
+                    });
+                    if (measuring) totalBytes += data.byteLength;
+                }
+            } catch (error) {
+                if (error.name !== "AbortError") console.error(error);
+            }
+        }
+
+        for (let i = 0; i < numberOfRequests; i++) uploadStream();
+
+        await new Promise(r => setTimeout(r, 2000));
+        totalBytes = 0;
+        measuring = true;
+        const measurementStartTime = performance.now();
+
+        const updateInterval = setInterval(() => {
+            const timeTaken = (performance.now() - measurementStartTime) / 1000;
+            if (timeTaken > 0) {
+                const speedMbps = (totalBytes * 8) / timeTaken / 1_000_000;
+                updateSpeed(speedMbps);
+            }
+        }, 100);
+
+        await new Promise(r => setTimeout(r, 10000));
+        measuring = false;
+        controller.abort();
+        clearInterval(updateInterval);
+
+        const timeTaken = (performance.now() - measurementStartTime) / 1000;
+        const speedMbps = (totalBytes * 8) / timeTaken / 1_000_000;
+        updateSpeed(speedMbps);
+        return speedMbps;
+    }
+
+    function updateSpeed(speed) {
+        // NOT clamped here — the real number (even past 1000 Mbps) is preserved.
+        // Only the needle/arc visually pin at the max via speedToFraction().
+        targetSpeed = speed;
+        animateGauge();
+    }
+
+    function animateGauge() {
+        displayedSpeed += (targetSpeed - displayedSpeed) * 0.09;
+        if (Math.abs(targetSpeed - displayedSpeed) < 0.15) {
+            displayedSpeed = targetSpeed;
+        }
+
+        const speedEl = document.getElementById("speed");
+        speedEl.innerText = Math.round(displayedSpeed);
+
+        // Needle angle & arc fill now use the SAME non-linear scale as the
+        // printed labels, so the needle always points at the number shown.
+        const percentage = speedToFraction(displayedSpeed);
+        const angle = -135 + (percentage * 270);
+        document.getElementById("needle").style.transform = `rotate(${angle}deg)`;
+
+        const degrees = percentage * 270;
+        document.getElementById("gaugeProgress").style.background = `conic-gradient(
+        from 225deg,
+        #22d3ee ${degrees}deg,
+        transparent ${degrees}deg
+      )`;
+
+        // Progressive numbers – appear when needle reaches them
+        document.querySelectorAll(".gauge-labels span").forEach(span => {
+            const threshold = parseFloat(span.dataset.speed);
+            if (displayedSpeed >= threshold) {
+                span.classList.add("active");
+            } else {
+                span.classList.remove("active");
+            }
+        });
+
+        // Keep the big hero number in sync with the gauge during download —
+        // both now read from the same displayedSpeed, so they can't diverge.
+        if (currentTestPhase === "download") {
+            document.getElementById("topDownloadSpeed").innerText = Math.round(displayedSpeed);
+        }
+
+        if (displayedSpeed !== targetSpeed) {
+            requestAnimationFrame(animateGauge);
+        }
+    }
+
+    function setStatus(text) {
+        const status = document.getElementById("status");
+        status.classList.add("fade");
+        setTimeout(() => {
+            status.innerText = text;
+            status.classList.remove("fade");
+        }, 280);
+    }
+
+    function highlightCard(id) {
+        const card = document.getElementById(id);
+        card.classList.remove("updated");
+        void card.offsetWidth;
+        card.classList.add("updated");
+    }
+
+    async function startTest() {
+        const button = document.getElementById("startButton");
+
+        button.disabled = true;
+        button.innerText = "Testing...";
+
+        document.getElementById("topDownloadSpeed").innerText = "--";
+        currentTestPhase = null;
+        // Reset numbers
+        document.querySelectorAll(".gauge-labels span").forEach(s => s.classList.remove("active"));
+        targetSpeed = 0;
+        displayedSpeed = 0;
+        updateSpeed(0);
+
+        let testSeconds = 0;
+        const testTimer = setInterval(() => {
+            testSeconds++;
+            document.getElementById("testTime").innerText = "Test time: " + testSeconds + "s";
+        }, 1000);
+
+        try {
+            // PING
+            currentTestPhase = "ping";
+            setStatus("Testing Ping...");
+            const ping = await testPing();
+            document.getElementById("pingResult").innerText = ping.toFixed(2) + " ms";
+            highlightCard("pingCard");
+
+            // DOWNLOAD
+            currentTestPhase = "download";
+            updateSpeed(0);
+            setStatus("Testing Download...");
+            document.getElementById("speedType").innerText = "DOWNLOAD";
+            const download = await testDownload();
+            document.getElementById("downloadResult").innerText = Math.round(download) + " Mbps";
+            highlightCard("downloadCard");
+
+            // UPLOAD
+            currentTestPhase = "upload";
+            updateSpeed(0);
+            setStatus("Testing Upload...");
+            document.getElementById("speedType").innerText = "UPLOAD";
+            const upload = await testUpload();
+            document.getElementById("uploadResult").innerText = Math.round(upload) + " Mbps";
+            highlightCard("uploadCard");
+
+            // COMPLETE
+            currentTestPhase = null;
+            document.getElementById("topDownloadSpeed").innerText = Math.round(download);
+            document.getElementById("topDownloadSpeed").classList.add("pop");
+            setTimeout(() => document.getElementById("topDownloadSpeed").classList.remove("pop"), 300);
+
+            updateSpeed(0);
+            setStatus("Test Complete!");
+        } catch (error) {
+            console.error(error);
+            currentTestPhase = null;
+            setStatus("Test failed — check your connection and try again.");
+        } finally {
+            clearInterval(testTimer);
+            button.disabled = false;
+            button.innerText = "TEST AGAIN";
+        }
+    }
+</script>
+</body>
+</html>

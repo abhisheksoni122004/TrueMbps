@@ -44,7 +44,9 @@
             animation: fadeInUp 0.7s ease both;
         }
 
+
         /* ========================= GAUGE (Ookla style) ========================= */
+
         .gauge {
             width: min(340px, 82vw);
             height: min(340px, 82vw);
@@ -429,7 +431,7 @@
         }
 
         .site-footer strong {
-            color: #FF0000;
+            color: #444;
             font-weight: 800;
         }
 
@@ -452,6 +454,7 @@
 <body>
 <div class="speedtest">
     <h1>YOUR SPEED</h1>
+
 
     <div class="top-speed">
         <div id="topDownloadSpeed">0</div>
@@ -505,7 +508,7 @@
     </div>
 </div>
 
-<div class="site-footer">POWERED BY <strong>TrueMbps</strong></div>
+<div class="site-footer">POWERED BY <strong>YOURBRAND</strong></div>
 
 <script>
     let displayedSpeed = 0;
@@ -565,7 +568,7 @@
 
         for (let i = 0; i < 4; i++) downloadStream();
 
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 300)); // brief settle time, not a long pause
         totalBytes = 0;
         measuring = true;
         const measurementStartTime = performance.now();
@@ -591,7 +594,7 @@
 
     async function testPing() {
         const samples = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 3; i++) {
             const start = performance.now();
             await fetch("/api/speed/ping");
             samples.push(performance.now() - start);
@@ -625,7 +628,7 @@
 
         for (let i = 0; i < numberOfRequests; i++) uploadStream();
 
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 300)); // brief settle time, not a long pause
         totalBytes = 0;
         measuring = true;
         const measurementStartTime = performance.now();
